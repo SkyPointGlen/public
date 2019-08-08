@@ -34,7 +34,7 @@
     },
     "DomainControllerIP": {
       "type": "string",
-      "defaultValue": "10.0.0.4"
+      "defaultValue": "10.0.0.10"
     },
     "domainName": {
       "type": "string",
@@ -54,7 +54,7 @@
     },
     "RDSServerIP": {
       "type": "string",
-      "defaultValue": "10.0.0.5"
+      "defaultValue": "10.0.0.12"
     },
     "windowsOSVersion": {
       "type": "string",

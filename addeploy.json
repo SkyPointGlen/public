@@ -195,7 +195,7 @@
             "caching": "None",
             "createOption": "FromImage",
             "managedDisk": {
-              "storageAccountType": "Premium_LRS"
+              "storageAccountType": "StandardSSD_LRS"
             }
           }
         },
@@ -205,6 +205,12 @@
               "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('dcNicName'))]"
             }
           ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true,
+            "storageUri": "[concat('http://', varaiables('strgeAccountName'), '.blob.core.windows.net')]"
+          }
         }
       },
       "resources": [

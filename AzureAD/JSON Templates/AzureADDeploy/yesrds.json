@@ -61,6 +61,7 @@
     }
   },
   "variables": {
+	"strgeAccountName": "[concat(parameters('clientcode'), 'storageacc')]",
     "RDSNicName": "[concat(parameters('clientcode'), '-RDS-nic')]",
     "serverSubnetName": "ServerSubnet",
     "virtualNetworkName": "[concat(parameters('clientcode'), '-vnet')]",

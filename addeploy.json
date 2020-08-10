@@ -209,7 +209,7 @@
         "diagnosticsProfile": {
           "bootDiagnostics": {
             "enabled": true,
-            "storageUri": "[concat('http://', varaiables('strgeAccountName'), '.blob.core.windows.net')]"
+            "storageUri": "[concat('http://', variables('strgeAccountName'), '.blob.core.windows.net')]"
           }
         }
       },

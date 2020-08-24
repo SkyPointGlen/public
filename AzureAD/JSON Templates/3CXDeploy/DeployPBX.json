@@ -1,0 +1,441 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "client Code": {
+        "type": "string",
+        "metadata": {
+          "description": "Three letter code for your client. Must be lower case"
+        }
+      },
+      "Admin Password": {
+        "type": "securestring",
+        "metadata": {
+          "description": "Password for the Virtual Machine."
+        }
+      },
+      "PBX IP": {
+          "type": "string",
+          "defaultValue": "10.0.0.12"
+        },
+      "Address Prefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/24"
+      },
+      "Server Subnet": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/25"
+      },
+      "VPN Gateway Subnet": {
+        "type": "string",
+        "defaultValue": "10.0.0.240/29"
+      },
+      "Local Network Gateway": {
+          "type": "string",
+          "defaultValue": "1.1.1.1"
+        },
+        "Local LAN Subnet": {
+          "type": "string",
+          "defaultValue": "192.168.1.0/24"
+        },"Pre-Shared Key": {
+          "type": "securestring",
+          "metadata": {
+            "description": "Password for site to site VPN."
+          }
+        }
+      },
+    "variables": {
+      "strgeAccountName": "[concat(parameters('client Code'), 'storageacc')]",
+      "PBXNicName": "[concat(parameters('client Code'), '-pbx-nic')]",
+      "addressPrefix": "[parameters('Address Prefix')]",
+      "serverSubnetName": "ServerSubnet",
+      "serversubnetPrefix": "[parameters('Server Subnet')]",
+      "vpnSubnetName": "GatewaySubnet",
+      "vpnsubnetPrefix": "[parameters('VPN Gateway Subnet')]",
+      "PBXpublicIPAddressName": "[concat(parameters('client Code'), '-pbx-pip')]",
+      "vpnpublicIPAddressName": "[concat(parameters('client Code'), '-vpn-pip')]",
+      "PBXvmName": "[concat(parameters('client Code'), 'PBX1')]",
+      "virtualNetworkName": "[concat(parameters('client Code'), '-vnet')]",
+      "networkSecurityGroupName": "[concat(parameters('client Code'), '-NSG')]",
+      "vngname": "[concat(parameters('client Code'), '-VNG')]",
+      "lngname": "[concat(parameters('client Code'), '-LNG')]",
+      "vpnname": "[concat(parameters('client Code'), '-VPN')]",
+      "location": "australiaeast",
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('serverSubnetName'))]",
+      "vpnsubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('vpnSubnetName'))]"
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "2018-11-01",
+        "name": "[variables('strgeAccountName')]",
+        "location": "[variables('location')]",
+        "sku": {
+          "name": "Standard_LRS"
+        },
+        "kind": "Storage",
+        "properties": {}
+      },
+      {
+        "type": "Microsoft.Network/virtualNetworks",
+        "apiVersion": "2018-10-01",
+        "name": "[variables('virtualNetworkName')]",
+        "location": "[variables('location')]",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[variables('addressPrefix')]"
+            ]
+          },
+          "dhcpOptions": {
+            "dnsServers": [
+              "1.1.1.1"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[variables('serverSubnetName')]",
+              "properties": {
+                "addressPrefix": "[variables('serversubnetPrefix')]",
+                "networkSecurityGroup":{"id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"}
+              }
+            },
+            {
+              "name": "[variables('vpnSubnetName')]",
+              "properties": {
+                "addressPrefix": "[variables('vpnsubnetPrefix')]"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "Microsoft.Network/networkInterfaces",
+        "apiVersion": "2017-06-01",
+        "name": "[variables('PBXNicName')]",
+        "location": "[variables('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/publicIPAddresses/', variables('PBXpublicIPAddressName'))]",
+          "[resourceId('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+        ],
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfigdc",
+              "properties": {
+                "privateIPAllocationMethod": "Static",
+                "privateIPAddress": "[parameters('PBX IP')]",
+                "publicIPAddress": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses/',variables('PBXpublicIPAddressName'))]"
+                },
+                "subnet": {
+                  "id": "[variables('subnetRef')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "Microsoft.Network/publicIPAddresses",
+        "apiVersion": "2017-06-01",
+        "name": "[variables('PBXpublicIPAddressName')]",
+        "location": "[variables('location')]",
+        "properties": {
+          "publicIPAllocationMethod": "Static"
+        }
+      },
+      {
+          "type": "Microsoft.Network/publicIPAddresses",
+          "apiVersion": "2017-06-01",
+          "name": "[variables('vpnpublicIPAddressName')]",
+          "location": "[variables('location')]",
+          "properties": {
+            "publicIPAllocationMethod": "Dynamic"
+          }
+        },
+        {
+          "type": "Microsoft.Network/localNetworkGateways",
+          "apiVersion": "2017-06-01",
+          "name": "[variables('lngname')]",
+          "location": "australiaeast",
+          "dependsOn": [
+              "[resourceId('Microsoft.Network/publicIPAddresses/', variables('vpnpublicIPAddressName'))]"
+            ],
+          "properties": {
+              "localNetworkAddressSpace": {
+                  "addressPrefixes": [
+                      "[parameters('Local LAN Subnet')]"
+                  ]
+              },
+              "gatewayIpAddress": "[parameters('Local Network Gateway')]"
+          }
+      },
+      {
+          "type": "Microsoft.Network/virtualNetworkGateways",
+          "apiVersion": "2017-06-01",
+          "name": "[variables('vngname')]",
+          "location": "australiaeast",
+          "dependsOn": [
+            "[variables('virtualNetworkName')]"
+          ],
+          "properties": {
+              "enablePrivateIpAddress": false,
+              "ipConfigurations": [
+                  {
+                      "name": "default",
+                      "properties": {
+                          "privateIPAllocationMethod": "Dynamic",
+                          "publicIPAddress": {
+                              "id": "[resourceId('Microsoft.Network/publicIPAddresses/', variables('vpnpublicIPAddressName'))]"
+                          },
+                          "subnet": {
+                            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('vpnSubnetName'))]"
+                          }
+                      }
+                  }
+              ],
+              "sku": {
+                  "name": "Basic",
+                  "tier": "Basic"
+              },
+              "gatewayType": "Vpn",
+              "vpnType": "RouteBased",
+              "enableBgp": false,
+              "activeActive": false,
+              "vpnGatewayGeneration": "Generation1"
+          }
+      },
+      {
+          "type": "Microsoft.Network/connections",
+          "apiVersion": "2017-06-01",
+          "name": "[variables('vpnname')]",
+          "location": "australiaeast",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworkGateways/', variables('vngname'))]"
+          ],
+          "properties": {
+              "virtualNetworkGateway1": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworkGateways/', variables('vngname'))]"
+              },
+              "localNetworkGateway2": {
+                  "id": "[resourceId('Microsoft.Network/localNetworkGateways/', variables('lngname'))]"
+              },
+              "connectionType": "IPsec",
+              "connectionProtocol": "IKEv2",
+              "routingWeight": 0,
+              "sharedKey": "[parameters('Pre-Shared Key')]",
+              "enableBgp": false,
+              "useLocalAzureIpAddress": false,
+              "usePolicyBasedTrafficSelectors": false,
+              "ipsecPolicies": [],
+              "trafficSelectorPolicies": [],
+              "expressRouteGatewayBypass": false
+          }
+      },
+      {
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "apiVersion": "2017-06-01",
+          "name": "[variables('networkSecurityGroupName')]",
+          "location": "australiaeast",
+          "properties": {
+              "securityRules": [
+                  {
+                      "name": "RDG_TCP_443",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "443",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "[parameters('PBX IP')]",
+                          "access": "Allow",
+                          "priority": 110,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "RDG_UDP_3391",
+                      "properties": {
+                          "protocol": "Udp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "3391",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "[parameters('PBX IP')]",
+                          "access": "Allow",
+                          "priority": 120,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "FTP_TCP_21",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "21",
+                          "destinationAddressPrefix": "*",
+                          "access": "Allow",
+                          "priority": 130,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [
+                              "114.134.6.67",
+                              "103.14.216.216"
+                          ],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "FTP_TCP_50000-50500",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "50000-50500",
+                          "destinationAddressPrefix": "*",
+                          "access": "Allow",
+                          "priority": 140,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [
+                              "114.134.6.67",
+                              "103.14.216.216"
+                          ],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "SIP_TCP_UDP_5060",
+                      "properties": {
+                          "protocol": "*",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "5060",
+                          "destinationAddressPrefix": "[parameters('PBX IP')]",
+                          "access": "Allow",
+                          "priority": 150,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [
+                              "27.111.14.65",
+                              "27.111.14.67"
+                          ],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "RTP_UDP_9000-9500",
+                      "properties": {
+                          "protocol": "Udp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "9000-9500",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "[parameters('PBX IP')]",
+                          "access": "Allow",
+                          "priority": 160,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "3CX_TCP_UDP_5090",
+                      "properties": {
+                          "protocol": "*",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "5090",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "[parameters('PBX IP')]",
+                          "access": "Allow",
+                          "priority": 170,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "3CX_TCP_5001",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "5001",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "[parameters('PBX IP')]",
+                          "access": "Allow",
+                          "priority": 180,
+                          "direction": "Inbound",
+                          "sourcePortRanges": [],
+                          "destinationPortRanges": [],
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  }
+              ]
+          }
+      },
+      {
+        "type": "Microsoft.Compute/virtualMachines",
+        "apiVersion": "2019-03-01",
+        "name": "[variables('PBXvmName')]",
+        "location": "[variables('location')]",
+        "dependsOn": [
+          "[variables('PBXNicName')]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "Standard_B2s"
+          },
+          "osProfile": {
+            "computerName": "[variables('PBXvmName')]",
+            "adminUsername": "sptlocal",
+            "adminPassword": "[parameters('Admin Password')]",
+            "windowsConfiguration": {
+              "provisionVMAgent": true,
+              "enableAutomaticUpdates": true
+          }
+          },"storageProfile": {
+          "imageReference": {
+              "publisher": "MicrosoftWindowsServer",
+              "offer": "WindowsServer",
+              "sku": "2019-Datacenter",
+              "version": "latest"
+            },
+            "osDisk": {
+              "name": "[concat(variables('PBXvmName'),'_OSDisk')]",
+              "caching": "None",
+              "createOption": "FromImage",
+              "managedDisk": {
+                "storageAccountType": "StandardSSD_LRS"
+              }
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                  "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('PBXNicName'))]"
+              }
+            ]
+          },
+          "diagnosticsProfile": {
+            "bootDiagnostics": {
+              "enabled": true,
+              "storageUri": "[concat('http://', variables('strgeAccountName'), '.blob.core.windows.net')]"
+            }
+          }
+        }
+      }
+    ]
+  }
+  

@@ -1,0 +1,29 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "mspOfferName": {
+            "value": "SkyPoint - Azure MSP"
+        },
+        "mspOfferDescription": {
+            "value": "SkyPoint - Azure MSP"
+        },
+        "managedByTenantId": {
+            "value": "00f18f3b-4435-4053-bee0-744af7648142"
+        },
+        "authorizations": {
+            "value": [
+                {
+                    "principalId": "e6be8685-52a5-4ee8-80b7-4c764fa1dc51",
+                    "principalIdDisplayName": "Administrators - Tier 1",
+                    "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7"
+                },
+                {
+                    "principalId": "233483a0-99d8-4741-9aa1-57174ab7369e",
+                    "principalIdDisplayName": "Administrators - Tier 2",
+                    "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c"
+                }             
+            ]
+        }
+    }
+}

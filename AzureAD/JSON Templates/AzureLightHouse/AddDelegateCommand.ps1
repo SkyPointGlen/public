@@ -1,0 +1,1 @@
+az deployment sub create --name SPAddDelegate --location "Australia East" --template-file "C:\Users\Glen\Desktop\Work\delegatedResourceManagement.json" --parameters "C:\Users\Glen\Desktop\Work\delegatedResourceManagement.parameters.json" --verbose
